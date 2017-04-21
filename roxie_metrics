@@ -2,14 +2,23 @@
 
 import time, subprocess, os, socket, netifaces
 
+# Graphite Server settings
 graphite_server = 'sever-ip'
 port = 'carbon-port'
+
+# Get hpcc component name 
 roxie_name = os.popen("service hpcc-init -c roxie status|awk '{print $1}'").readline().replace('\n', '')
-ip_addr = netifaces.ifaddresses('eno1')[2][0]['addr'].replace('\n', '')
-sender = socket.socket()
+
+# Client IP Address, might need to use different interface name instead of eno1, 
+# you get this value from output of ifconfig or ip addr
+ip_addr = netifaces.ifaddresses('eno1')[2][0]['addr'].replace('\n', '').replace('.', '_')
+
+# Log file and reading contents in read time using tail
 logfile = '/var/log/HPCCSystems/%s/roxie.log' % roxie_name
 tail_it = subprocess.Popen(['tail', '-F', logfile], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
 
+# Socket connection
+sender = socket.socket()
 sender.connect((graphite_server, port))
 
 while True:
