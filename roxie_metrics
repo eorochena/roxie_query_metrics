@@ -1,6 +1,10 @@
 #!/usr/bin/python
 
-import time, subprocess, os, socket, netifaces
+import time
+import subprocess
+import os
+import socket
+import netifaces
 
 # Graphite Server settings
 graphite_server = 'sever-ip'
@@ -15,19 +19,17 @@ ip_addr = netifaces.ifaddresses('eno1')[2][0]['addr'].replace('\n', '').replace(
 
 # Log file and reading contents in read time using tail
 logfile = '/var/log/HPCCSystems/%s/roxie.log' % roxie_name
-tail_it = subprocess.Popen(['tail', '-F', logfile], stdout = subprocess.PIPE, stderr = subprocess.PIPE)
+tail_it = subprocess.Popen(['tail', '-F', logfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
 # Socket connection
 sender = socket.socket()
 sender.connect((graphite_server, port))
 
 while True:
-	msg = tail_it.stdout.readline()
-	if 'COMPLETE' in msg:
-		query_name = msg.split('COMPLETE:')[1].split()[0]
-		time_ms = msg.split('COMPLETE:')[1].split()[6]
-		query_timings = '%s.%s.%s %d %d\n' % (roxie_name, ip_addr, query_name, int(time_ms), time.time())
-		sender.sendall(query_timings)
-sender.close()
-
+    msg = tail_it.stdout.readline()
+    if 'COMPLETE' in msg:
+        query_name = msg.split('COMPLETE:')[1].split()[0]
+        time_ms = msg.split('COMPLETE:')[1].split()[6]
+        query_timings = '%s.%s.%s %d %d\n' % (roxie_name, ip_addr, query_name, int(time_ms), time.time())
+        sender.sendall(query_timings)
 
