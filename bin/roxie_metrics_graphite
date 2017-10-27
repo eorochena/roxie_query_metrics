@@ -4,7 +4,7 @@ import time
 import subprocess
 import os
 import socket
-import netifaces
+import lxml.etree as et
 
 # Graphite Server settings
 graphite_server = 'sever-ip'
@@ -12,24 +12,21 @@ port = 'carbon-port'
 
 # Get hpcc component name 
 roxie_name = os.popen("service hpcc-init -c roxie status|awk '{print $1}'").readline().replace('\n', '')
-
-# Client IP Address, might need to use different interface name instead of eno1, 
-# you get this value from output of ifconfig or ip addr
-ip_addr = netifaces.ifaddresses('eno1')[2][0]['addr'].replace('\n', '').replace('.', '_')
-
-# Log file and reading contents in read time using tail
-logfile = '/var/log/HPCCSystems/%s/roxie.log' % roxie_name
-tail_it = subprocess.Popen(['tail', '-F', logfile], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+cmd = '2>/dev/null testsocket . "<control:metrics/>"'
 
 # Socket connection
 sender = socket.socket()
 sender.connect((graphite_server, port))
 
 while True:
-    msg = tail_it.stdout.readline()
-    if 'COMPLETE' in msg:
-        query_name = msg.split('COMPLETE:')[1].split()[0]
-        time_ms = msg.split('COMPLETE:')[1].split()[6]
-        query_timings = '%s.%s.%s %d %d\n' % (roxie_name, ip_addr, query_name, int(time_ms), time.time())
-        sender.sendall(query_timings)
+    get_metrics = os.popen(cmd).read()
+    if get_metrics:
+        parse_xml = et.fromstring(get_metrics)
+        doc_root = parse_xml
+        for ip in doc_root:
+            ip_address = ip.attrib['ep'].replace(':9876', '')
+        for metric in doc_root.iter('Metric'):
+            roxie_metrics = '%s.%s.%s.%d.%d\n' % (roxie_name, ip_address.replace('.', '_'),
+                                                  metric.attrib['name'], int(metric.attrib['value']), time.time())
+            sender.sendall(roxie_metrics)
 
