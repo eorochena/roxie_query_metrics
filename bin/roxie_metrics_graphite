@@ -25,7 +25,7 @@ while True:
         for ip in doc_root:
             ip_address = ip.attrib['ep'].replace(':9876', '')
         for metric in doc_root.iter('Metric'):
-            roxie_metrics = '%s.%s.%s.%d.%d\n' % (roxie_name, ip_address.replace('.', '_'),
+            roxie_metrics = '%s.%s.%s %d %d\n' % (roxie_name, ip_address.replace('.', '_'),
                                                   metric.attrib['name'], int(metric.attrib['value']), time.time())
             sender.sendall(roxie_metrics)
         time.sleep(1)
