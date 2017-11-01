@@ -61,6 +61,6 @@ while True:
 	   time.sleep(5)
     else:
         counter = True 
-	logging.critical('unable to establish connection with Graphite server')
+	logging.critical('Unable to establish connection with Graphite server')
 	time.sleep(10)
 
