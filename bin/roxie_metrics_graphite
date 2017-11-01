@@ -6,9 +6,9 @@ import os
 import socket
 import lxml.etree as et
 
-# Graphite Server settings
-graphite_server = 'server-ip'
-port = 'carbon-port as an integer'
+graphite_server = 'graphite-server'
+graphite_port = 'graphite-port integer'
+monitor_port = 'monitor-port integer'
 
 log_file = '/var/log/roxie_metrics_graphite.log'
 
@@ -17,19 +17,35 @@ if not os.path.isfile(log_file):
 
 logging.basicConfig(format = '%(asctime)s %(message)s', filename = log_file, level = logging.INFO)
 
-# Get hpcc component name 
 roxie_name = os.popen("service hpcc-init -c roxie status|awk '{print $1}'").readline().replace('\n', '')
 cmd = '2>/dev/null testsocket . "<control:metrics/>"'
+    
+def connection_state():
+    test_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    test_connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    test_connection.bind(('0.0.0.0', monitor_port))
+    test_connection.settimeout(3)
+    test_connection_result = test_connection.connect_ex((graphite_server, graphite_port))
+    test_connection.shutdown(1)
+    test_connection.close()
+    if test_connection_result == 0:
+	return True
+    else:
+	return False
+
+sender = socket.socket()
+sender.connect((graphite_server, graphite_port))
+
+logging.info('Started application')
+
+counter = False
 
 while True:
-    test_connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    test_connection.settimeout(3)
-    test_connection_result = test_connection.connect_ex((graphite_server, port))
-    if test_connection_result == 0:
-	sender = socket.socket()
-	sender.connect((graphite_server, port))
+    if connection_state():
+        if counter == True:
+		logging.info('Started application')
+		counter = False
         get_metrics = os.popen(cmd).read()
-        logging.info('started application')
         if get_metrics:
             parse_xml = et.fromstring(get_metrics)
             doc_root = parse_xml
@@ -41,9 +57,10 @@ while True:
                 sender.sendall(roxie_metrics)
             time.sleep(1)
         else:
-	   logging.warning('unable to get metrics from roxie application, is it running?')
+	   logging.warning('Unable to get metrics from roxie application, is it running?')
 	   time.sleep(5)
     else:
+        counter = True 
 	logging.critical('unable to establish connection with Graphite server')
 	time.sleep(10)
 
